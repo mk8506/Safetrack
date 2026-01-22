@@ -7,12 +7,11 @@
 #include <SPI.h>
 #include "gpsPacket.h"
 
-#define LED_PIN PIN_015       // Onboard LED, change if different
-#define OLED_RESET -1         // OLED reset pin
-#define GPS_SERIAL Serial1    // GPS module serial port
-#define DISPLAY_WIDTH 128
+#define LED            (0 + 15)     // Onboard LED, change if different
+#define OLED_RESET     -1         // OLED reset pin
+#define GPS_SERIAL     Serial1    // GPS module serial port
+#define DISPLAY_WIDTH  128
 #define DISPLAY_HEIGHT 64
-//#define PIN_LED1 0 //here 
 
 #define SX126X_CS    (32 + 13) // P1.13
 #define SX126X_DIO1  (0 + 10)  // P0.10
@@ -25,6 +24,10 @@
 #define ROLE_TX
 //#define ROLE_RX uncomment this for the RX board
 
+void setFlag(void);
+void setup();
+void loop();
+String bytesToAscii(const uint8_t *, size_t);
 
 // LoRa modem settings
 const float FREQ_MHZ = 906.875;
@@ -33,7 +36,6 @@ const unsigned long BW = 250000;
 const uint8_t CR = 5;
 const uint16_t PREAMBLE = 16;
 const uint8_t SYNCWORD = 0x2B;
-const uint8_t PIN_LED1 = 0; //here
 
 Adafruit_SSD1306 display(DISPLAY_WIDTH, DISPLAY_HEIGHT, &Wire, OLED_RESET);
 uint8_t buffer[DISPLAY_WIDTH * DISPLAY_HEIGHT / 8];
@@ -51,16 +53,17 @@ void setFlag() {
 }
 
 void setup() {
-    pinMode(PIN_LED1, OUTPUT);
-    digitalWrite(PIN_LED1, LOW);
+    pinMode(LED, OUTPUT);
+    digitalWrite(LED, LOW);
 
     GPS_SERIAL.begin(9600);
 
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
-        digitalWrite(PIN_LED1, HIGH);
+        digitalWrite(LED, HIGH);
         while (true);
     }
 
+		//memset(buffer, 0, sizeof(buffer)); // set loop display buffer with zeros
     display.clearDisplay();
     display.setTextSize(1);
     display.setTextColor(SSD1306_WHITE);
@@ -84,7 +87,7 @@ void setup() {
     radio.setCodingRate(CR);
     radio.setPreambleLength(PREAMBLE);
     radio.setSyncWord(SYNCWORD);
-
+		//radio.setCRC(2);
     radio.setDio1Action(setFlag);
 
     Serial.print(F("[SX1262] Starting to listen ... "));
@@ -96,7 +99,8 @@ void setup() {
         Serial.println(state);
         while (true) { delay(10); }
     }
-
+		Serial.println("boot successful..."); //
+		delay(1000); //
     display.clearDisplay();
     display.display();
 }
@@ -222,4 +226,18 @@ void loop() {
 			radio.startReceive();
 		}
 	#endif
+}
+
+String bytesToAscii(const uint8_t *buf, size_t len) {
+  String s;
+  s.reserve(len);
+  for (size_t i = 0; i < len; i++) {
+    char c = (char)buf[i];
+    if (c >= 32 && c <= 126) {
+      s += c;            // printable ASCII
+    } else {
+      s += '.';          // non-printable → dot
+    }
+  }
+  return s;
 }
